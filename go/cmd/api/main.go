@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math/rand/v2"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -9,8 +10,22 @@ import (
 	"gorm.io/gorm"
 )
 
+var groguQuotes = []string{
+	"Fear is the path to the dark side.",
+	"Do. Or do not. There is no try.",
+	"Luminous beings are we, not this crude matter.",
+}
+
 func newDatabase() (*gorm.DB, error) {
 	return gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+}
+
+func randomGroguQuote() (string, bool) {
+	if len(groguQuotes) == 0 {
+		return "", false
+	}
+
+	return groguQuotes[rand.IntN(len(groguQuotes))], true
 }
 
 func newRouter(db *gorm.DB) *gin.Engine {
@@ -29,6 +44,18 @@ func newRouter(db *gorm.DB) *gin.Engine {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
+	})
+
+	router.GET("/grogu", func(c *gin.Context) {
+		quote, ok := randomGroguQuote()
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "no grogu quotes configured"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"quote": quote,
+		})
 	})
 
 	return router
