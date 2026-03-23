@@ -13,7 +13,13 @@ func newDatabase() (*gorm.DB, error) {
 	return gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 }
 
-func newRouter(db *gorm.DB) *gin.Engine {
+type shipsResponse struct {
+	Ships   []string `json:"ships"`
+	Count   int      `json:"count"`
+	Message string   `json:"message,omitempty"`
+}
+
+func newRouter(db *gorm.DB, shipService ShipService) *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/ping", func(c *gin.Context) {
@@ -31,6 +37,20 @@ func newRouter(db *gorm.DB) *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
+	router.GET("/ships", func(c *gin.Context) {
+		ships := shipService.ListShips()
+		response := shipsResponse{
+			Ships: ships,
+			Count: len(ships),
+		}
+
+		if len(ships) == 0 {
+			response.Message = "No ships available."
+		}
+
+		c.JSON(http.StatusOK, response)
+	})
+
 	return router
 }
 
@@ -40,7 +60,7 @@ func main() {
 		log.Fatalf("failed to initialize database: %v", err)
 	}
 
-	router := newRouter(db)
+	router := newRouter(db, newShipService())
 
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)
